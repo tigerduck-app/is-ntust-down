@@ -110,7 +110,7 @@ func Load(dotenvPath string) (*Config, error) {
 		HTTPAddr: l.str("HTTP_ADDR", ":8080"),
 		LogLevel: l.str("LOG_LEVEL", "info"),
 
-		DatabaseURL:     l.str("DATABASE_URL", "postgres://isntustup:isntustup@localhost:5432/isntustup?sslmode=disable"),
+		DatabaseURL:     l.str("DATABASE_URL", "postgres://isntustdown:isntustdown@localhost:5432/isntustdown?sslmode=disable"),
 		DisplayTimezone: l.str("DISPLAY_TIMEZONE", "Asia/Taipei"),
 
 		RawRetentionDays:    l.intVal("RAW_RESULT_RETENTION_DAYS", 14),

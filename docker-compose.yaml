@@ -3,13 +3,13 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-isntustup}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-isntustup}
-      POSTGRES_DB: ${POSTGRES_DB:-isntustup}
+      POSTGRES_USER: ${POSTGRES_USER:-isntustdown}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-isntustdown}
+      POSTGRES_DB: ${POSTGRES_DB:-isntustdown}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-isntustup} -d ${POSTGRES_DB:-isntustup}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-isntustdown} -d ${POSTGRES_DB:-isntustdown}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,7 +27,7 @@ services:
     environment:
       # Compose supplies the real environment; the binary must not also read
       # the mounted .env, or a stale file could silently win.
-      DATABASE_URL: ${DATABASE_URL:-postgres://isntustup:isntustup@postgres:5432/isntustup?sslmode=disable}
+      DATABASE_URL: ${DATABASE_URL:-postgres://isntustdown:isntustdown@postgres:5432/isntustdown?sslmode=disable}
     command: ["-env", ""]
     ports:
       - "${HTTP_PORT:-8080}:8080"
