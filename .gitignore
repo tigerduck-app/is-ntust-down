@@ -1,0 +1,9 @@
+# IDE
+.idea/
+
+# AI
+.claude/settings.local.json
+docs/superpowers/
+
+# Secrets
+.env

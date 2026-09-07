@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="{{ .Lang.HTMLLang }}" data-range="hour">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{ .T "site.title" }}</title>
+<meta name="description" content="{{ .T "site.tagline" }}">
+<script>{{ .ThemeScript }}</script>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">{{ .T "label.skip" }}</a>
+
+<header class="masthead">
+  <div class="wrap masthead__inner">
+    <div>
+      <h1 class="masthead__title">{{ .T "site.title" }}</h1>
+      <p class="masthead__tagline">{{ .T "site.tagline" }}</p>
+    </div>
+    <div class="masthead__actions">
+      <a class="pill" href="?lang={{ .OtherLang }}" hreflang="{{ .OtherLang }}">{{ .T "label.switch_lang" }}</a>
+      <button id="theme-toggle" class="pill theme" type="button"
+              data-label-auto="{{ .T "label.theme_auto" }}"
+              data-label-light="{{ .T "label.theme_light" }}"
+              data-label-dark="{{ .T "label.theme_dark" }}"
+              data-label-prefix="{{ .T "label.theme" }}"
+              aria-label="{{ .T "label.theme" }}">
+        <span class="theme__icon" aria-hidden="true"></span>
+        <span class="theme__label"></span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="wrap">
+  <section class="banner banner--{{ .Overall }}">
+    <span class="banner__glyph" aria-hidden="true">{{ glyph .Overall }}</span>
+    <div>
+      <p class="banner__title">{{ .OverallText }}</p>
+      <p class="banner__meta">{{ .T "label.updated_at" }} {{ stamp .Now }}</p>
+    </div>
+  </section>
+
+  <p class="intro">{{ .T "site.subtitle" }}</p>
+
+  <div class="rangebar" role="group" aria-label="{{ .T "label.range" }}">
+    <button class="rangebtn" type="button" data-range="hour">{{ .HoursLabel .HistoryHours }}</button>
+    <button class="rangebtn" type="button" data-range="day">{{ .HistoryLabel .HistoryDays }}</button>
+  </div>
+
+  <ul class="services">
+    {{ range .Services }}
+    <li class="service">
+      <div class="service__head">
+        <div class="service__id">
+          <h2 class="service__name">{{ .Name }}</h2>
+          <p class="service__desc">{{ .Desc }}</p>
+        </div>
+        <span class="badge badge--{{ .State }}">
+          <span class="badge__glyph" aria-hidden="true">{{ glyph .State }}</span>{{ .StateLabel }}
+        </span>
+      </div>
+
+      <ul class="checks">
+        {{ range .Checks }}
+        <li class="check check--{{ .State }}">
+          <span class="check__glyph" aria-hidden="true">{{ glyph .State }}</span>
+          <span class="check__name">{{ .Name }}</span>
+          <span class="check__state">{{ .StateLabel }}</span>
+          {{ if .Reason }}<span class="check__reason">{{ .Reason }}</span>{{ end }}
+        </li>
+        {{ end }}
+      </ul>
+
+      <div class="strip strip--hour" data-range-panel="hour" data-service="{{ .Key }}">
+        <div class="strip__bars strip__bars--hour" role="img"
+             aria-label="{{ $.HoursLabel $.HistoryHours }} {{ $.T "label.uptime" }} {{ pct .HourUptimePct }}">
+          {{ range .Hours }}
+          <button class="bar bar--{{ .State }}" type="button"
+                  data-detail="{{ .Tooltip }}" title="{{ .Tooltip }}"
+                  aria-label="{{ .Tooltip }}"><span class="bar__label" aria-hidden="true">{{ .Label }}</span></button>
+          {{ end }}
+        </div>
+        <p class="strip__detail" data-placeholder="{{ $.T "label.tap_hint_hour" }}">{{ $.T "label.tap_hint_hour" }}</p>
+        <div class="strip__meta">
+          <span>{{ $.HoursLabel $.HistoryHours }}</span>
+          <span class="strip__uptime">{{ $.T "label.uptime" }} {{ pct .HourUptimePct }}</span>
+          <span class="strip__checked">{{ $.T "label.last_checked" }} {{ $.Clock .LastCheckedAt }}</span>
+        </div>
+      </div>
+
+      <div class="strip strip--day" data-range-panel="day" data-service="{{ .Key }}">
+        <div class="strip__bars" role="img"
+             aria-label="{{ $.HistoryLabel $.HistoryDays }} {{ $.T "label.uptime" }} {{ pct .UptimePct }}">
+          {{ range .Days }}
+          <button class="bar bar--{{ .State }}" type="button"
+                  data-detail="{{ .Tooltip }}" title="{{ .Tooltip }}"
+                  aria-label="{{ .Tooltip }}"></button>
+          {{ end }}
+        </div>
+        <p class="strip__detail" data-placeholder="{{ $.T "label.tap_hint" }}">{{ $.T "label.tap_hint" }}</p>
+        <div class="strip__meta">
+          <span class="range range--30">{{ $.HistoryLabel 30 }}</span>
+          <span class="range range--60">{{ $.HistoryLabel 60 }}</span>
+          <span class="range range--90">{{ $.HistoryLabel $.HistoryDays }}</span>
+          <span class="strip__uptime">{{ $.T "label.uptime" }} {{ pct .UptimePct }}</span>
+          <span class="strip__checked">{{ $.T "label.last_checked" }} {{ $.Clock .LastCheckedAt }}</span>
+        </div>
+      </div>
+    </li>
+    {{ end }}
+  </ul>
+
+  <section class="legend" aria-label="{{ .T "label.legend" }}">
+    <span class="legend__item"><i class="swatch swatch--up" aria-hidden="true"></i>{{ .T "state.up" }}</span>
+    <span class="legend__item"><i class="swatch swatch--degraded" aria-hidden="true"></i>{{ .T "state.degraded" }}</span>
+    <span class="legend__item"><i class="swatch swatch--down" aria-hidden="true"></i>{{ .T "state.down" }}</span>
+    <span class="legend__item"><i class="swatch swatch--unknown" aria-hidden="true"></i>{{ .T "state.unknown" }}</span>
+  </section>
+</main>
+
+<footer class="wrap footer">
+  <p>{{ .T "label.source" }}</p>
+  <p>
+    <strong>{{ .T "label.api" }}</strong> — {{ .T "label.api_desc" }}
+    <code>GET /api/v1/status</code>
+    <code>GET /api/v1/services</code>
+    <code>GET /api/v1/services/{key}/history?days={{ .HistoryDays }}</code>
+    <code>GET /api/v1/services/{key}/history?resolution=hour&amp;hours={{ .HistoryHours }}</code>
+  </p>
+  <p class="footer__repo">
+    <a class="repo" href="https://github.com/tigerduck-app/is-ntust-up">
+      <svg class="repo__mark" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+        <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+      </svg>
+      <span>tigerduck-app/is-ntust-up</span>
+    </a>
+  </p>
+</footer>
+
+<script src="/static/app.js" defer></script>
+</body>
+</html>
