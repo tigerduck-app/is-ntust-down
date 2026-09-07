@@ -27,13 +27,13 @@ if ! grep -qE '^NTUST_SSO_USERNAME=.+' .env || ! grep -qE '^NTUST_SSO_PASSWORD=.
 fi
 
 if command -v go >/dev/null 2>&1; then
-  exec go run ./cmd/isntustup -verify-sso
+  exec go run ./cmd/isntustdown -verify-sso
 fi
 
-if [[ -x bin/isntustup ]]; then
-  exec ./bin/isntustup -verify-sso
+if [[ -x bin/isntustdown ]]; then
+  exec ./bin/isntustdown -verify-sso
 fi
 
-echo "Neither the Go toolchain nor bin/isntustup is available." >&2
+echo "Neither the Go toolchain nor bin/isntustdown is available." >&2
 echo "Install Go, or run: docker compose run --rm app -verify-sso" >&2
 exit 2

@@ -1,4 +1,4 @@
-// Command isntustup runs the NTUST + TigerDuck status monitor: the probes, the
+// Command isntustdown runs the NTUST + TigerDuck status monitor: the probes, the
 // history store, and the public page and API.
 package main
 

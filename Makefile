@@ -7,7 +7,7 @@ env: ## Create .env from the example without ever clobbering an existing one
 	@cp -n .env.example .env && echo "created .env" || echo ".env already exists — left untouched"
 
 build: ## Compile the binary
-	go build -o bin/isntustup ./cmd/isntustup
+	go build -o bin/isntustdown ./cmd/isntustdown
 
 test: ## Run the test suite
 	go test ./... -count=1
@@ -23,7 +23,7 @@ tidy: ## Tidy modules
 	go mod tidy
 
 run: ## Run locally against a local Postgres
-	go run ./cmd/isntustup
+	go run ./cmd/isntustdown
 
 up: ## Start the stack
 	docker compose up -d --build
