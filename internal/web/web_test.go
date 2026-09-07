@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/config"
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/store"
-	"github.com/SamWang8891/is-ntust-up/internal/web/i18n"
+	"github.com/SamWang8891/is-ntust-down/internal/config"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/store"
+	"github.com/SamWang8891/is-ntust-down/internal/web/i18n"
 )
 
 var taipei = mustLoadTaipei()
@@ -343,8 +343,8 @@ func TestPageRendersInTaiwanMandarin(t *testing.T) {
 		"SSO 登入驗證",
 		"SSO 登入遭拒",
 		`id="theme-toggle"`,
-		"is-ntust-up:theme", // the inline pre-paint bootstrap
-		"is-ntust-up:range",
+		"is-ntust-down:theme", // the inline pre-paint bootstrap
+		"is-ntust-down:range",
 		`data-range-panel="hour"`,
 		`data-range-panel="day"`,
 	} {
@@ -511,8 +511,8 @@ func TestFooterLinksToTheRepository(t *testing.T) {
 
 	body := rec.Body.String()
 	for _, want := range []string{
-		`href="https://github.com/tigerduck-app/is-ntust-up"`,
-		"tigerduck-app/is-ntust-up",
+		`href="https://github.com/tigerduck-app/is-ntust-down"`,
+		"tigerduck-app/is-ntust-down",
 		// Inline SVG rather than a hosted image: the CSP forbids external
 		// images, and the mark should not cost a request.
 		`class="repo__mark"`,

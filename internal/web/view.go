@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/config"
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/store"
-	"github.com/SamWang8891/is-ntust-up/internal/web/i18n"
+	"github.com/SamWang8891/is-ntust-down/internal/config"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/store"
+	"github.com/SamWang8891/is-ntust-down/internal/web/i18n"
 )
 
 // Reader is the slice of storage the web layer needs. It is read-only by

@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/store"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/store"
 )
 
 // Clock is injectable so backoff and the daily ceiling can be tested in

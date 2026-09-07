@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  var KEY = 'is-ntust-up:theme';
+  var KEY = 'is-ntust-down:theme';
   var MODES = ['auto', 'light', 'dark'];
   var ICONS = { auto: '◐', light: '☀', dark: '☾' };
 
@@ -85,7 +85,7 @@
   }
 
   function initRange() {
-    var KEY = 'is-ntust-up:range';
+    var KEY = 'is-ntust-down:range';
     var buttons = document.querySelectorAll('.rangebtn');
     if (!buttons.length) return;
 

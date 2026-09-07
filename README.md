@@ -1,4 +1,4 @@
-# is-ntust-up
+# is-ntust-down
 
 台科大服務狀態頁 — NTUST Moodle、選課系統、校園信箱、課程查詢 API，以及 TigerDuck 後端 v3 的狀態監控。
 

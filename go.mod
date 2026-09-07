@@ -1,4 +1,4 @@
-module github.com/SamWang8891/is-ntust-up
+module github.com/SamWang8891/is-ntust-down
 
 go 1.26.1
 

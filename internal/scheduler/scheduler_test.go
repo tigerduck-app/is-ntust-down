@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/store"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/store"
 )
 
 // --- doubles ---

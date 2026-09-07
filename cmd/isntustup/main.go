@@ -15,11 +15,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/config"
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/scheduler"
-	"github.com/SamWang8891/is-ntust-up/internal/store"
-	"github.com/SamWang8891/is-ntust-up/internal/web"
+	"github.com/SamWang8891/is-ntust-down/internal/config"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/scheduler"
+	"github.com/SamWang8891/is-ntust-down/internal/store"
+	"github.com/SamWang8891/is-ntust-down/internal/web"
 )
 
 func main() {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
 )
 
 // HourBucket is one cell of the hourly strip.

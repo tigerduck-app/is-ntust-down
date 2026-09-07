@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SamWang8891/is-ntust-up/internal/config"
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
-	"github.com/SamWang8891/is-ntust-up/internal/web/i18n"
+	"github.com/SamWang8891/is-ntust-down/internal/config"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/web/i18n"
 )
 
 //go:embed templates/*.html static/*

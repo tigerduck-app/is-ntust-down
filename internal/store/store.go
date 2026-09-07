@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/SamWang8891/is-ntust-up/internal/probe"
+	"github.com/SamWang8891/is-ntust-down/internal/probe"
 )
 
 //go:embed migrations/*.sql
