@@ -213,7 +213,7 @@ func (s *Scheduler) guardBlocks(ctx context.Context, job Job) (probe.ReasonCode,
 		return probe.ReasonBreakerOpen, true
 	}
 	if rec.OpenUntil != nil && now.Before(*rec.OpenUntil) {
-		return probe.ReasonBreakerOpen, true
+		return pauseReason(rec), true
 	}
 
 	if s.guard.MaxAttemptsPerDay > 0 {
@@ -223,7 +223,7 @@ func (s *Scheduler) guardBlocks(ctx context.Context, job Job) (probe.ReasonCode,
 			return probe.ReasonBreakerOpen, true
 		}
 		if n >= s.guard.MaxAttemptsPerDay {
-			return probe.ReasonBreakerOpen, true
+			return pauseReason(rec), true
 		}
 	}
 
@@ -240,6 +240,16 @@ func (s *Scheduler) guardBlocks(ctx context.Context, job Job) (probe.ReasonCode,
 	}
 
 	return probe.ReasonNone, false
+}
+
+// pauseReason explains a suspension. When the last real attempt failed, the
+// pause says so, and the page keeps showing that failure instead of treating
+// the suspension as missing data and going green.
+func pauseReason(rec store.BreakerRecord) probe.ReasonCode {
+	if rec.ConsecutiveFails > 0 {
+		return probe.ReasonPausedAfterFailure
+	}
+	return probe.ReasonBreakerOpen
 }
 
 func (s *Scheduler) updateBreaker(ctx context.Context, key string, res probe.Result) {

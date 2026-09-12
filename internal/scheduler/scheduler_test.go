@@ -253,6 +253,29 @@ func TestTransientFailuresRespectTheThreshold(t *testing.T) {
 	}
 }
 
+func TestAFailedSSORedirectRespectsTheThreshold(t *testing.T) {
+	repo := newFakeRepo()
+	repo.current["moodle.sso_page"] = store.Current{State: probe.StateUp}
+
+	p := &scriptedProbe{key: "moodle.sso_login", results: []probe.Result{
+		{State: probe.StateDown, ReasonCode: probe.ReasonSSORedirectFailed},
+	}}
+	s := newTestScheduler(repo, &fakeClock{now: time.Now()}, defaultGuard())
+	job := guardedJob(p, "moodle.sso_page")
+
+	// A broken redirect is NTUST's SSO failing, not a wrong password, so it
+	// gets the ordinary threshold rather than suspending on first sight.
+	s.RunOnce(context.Background(), job)
+	if repo.breakers["moodle.sso_login"].OpenUntil != nil {
+		t.Fatal("a single failed redirect suspended probing")
+	}
+
+	s.RunOnce(context.Background(), job)
+	if repo.breakers["moodle.sso_login"].OpenUntil == nil {
+		t.Fatal("breaker should open once the threshold is reached")
+	}
+}
+
 func TestSuccessResetsTheBreaker(t *testing.T) {
 	repo := newFakeRepo()
 	repo.current["moodle.sso_page"] = store.Current{State: probe.StateUp}
@@ -324,6 +347,41 @@ func TestAStorageFailureFailsClosed(t *testing.T) {
 	// spent, and guessing wrong costs the account rather than a data point.
 	if p.runCount() != 0 {
 		t.Fatal("probe ran while the breaker state was unreadable")
+	}
+}
+
+func TestAPauseAfterAFailedSignInSaysSo(t *testing.T) {
+	now := time.Now()
+	until := now.Add(time.Hour)
+	repo := newFakeRepo()
+	repo.current["moodle.sso_page"] = store.Current{State: probe.StateUp}
+	repo.breakers["moodle.sso_login"] = store.BreakerRecord{
+		CheckKey: "moodle.sso_login", ConsecutiveFails: 2, OpenUntil: &until, BackoffSeconds: 3600,
+	}
+
+	p := &scriptedProbe{key: "moodle.sso_login"}
+	s := newTestScheduler(repo, &fakeClock{now: now}, defaultGuard())
+	got := s.RunOnce(context.Background(), guardedJob(p, "moodle.sso_page"))
+
+	// Still unknown, because nothing was observed, but the reason has to
+	// carry that the last real attempt failed. Otherwise the page shows the
+	// service healthy for the whole suspension.
+	if got.State != probe.StateUnknown || got.ReasonCode != probe.ReasonPausedAfterFailure {
+		t.Fatalf("got %q/%q, want unknown/paused_after_failure", got.State, got.ReasonCode)
+	}
+}
+
+func TestAPauseWithNoFailureBehindItStaysNeutral(t *testing.T) {
+	repo := newFakeRepo()
+	repo.current["moodle.sso_page"] = store.Current{State: probe.StateUp}
+	repo.attempts = 1000 // the daily ceiling, with the last attempt a success
+
+	p := &scriptedProbe{key: "moodle.sso_login"}
+	s := newTestScheduler(repo, &fakeClock{now: time.Now()}, defaultGuard())
+	got := s.RunOnce(context.Background(), guardedJob(p, "moodle.sso_page"))
+
+	if got.ReasonCode != probe.ReasonBreakerOpen {
+		t.Fatalf("reason = %q, want breaker_open: nothing failed, so the pause must not imply an outage", got.ReasonCode)
 	}
 }
 

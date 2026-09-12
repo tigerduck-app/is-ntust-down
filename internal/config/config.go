@@ -133,7 +133,7 @@ func Load(dotenvPath string) (*Config, error) {
 		BreakerFailureThreshold: l.intVal("SSO_BREAKER_FAILURE_THRESHOLD", 2),
 		BreakerBackoffInitial:   l.dur("SSO_BREAKER_BACKOFF_INITIAL", time.Hour),
 		BreakerBackoffMax:       l.dur("SSO_BREAKER_BACKOFF_MAX", 12*time.Hour),
-		MaxLoginAttemptsPerDay:  l.intVal("SSO_MAX_LOGIN_ATTEMPTS_PER_DAY", 24),
+		MaxLoginAttemptsPerDay:  l.intVal("SSO_MAX_LOGIN_ATTEMPTS_PER_DAY", 30),
 
 		MoodleBaseURL:               l.url("MOODLE_BASE_URL", "https://moodle2.ntust.edu.tw"),
 		MoodleSiteInterval:          l.dur("MOODLE_SITE_INTERVAL", time.Minute),
@@ -181,6 +181,18 @@ func Load(dotenvPath string) (*Config, error) {
 	// strip displays would leave permanent gaps at the left edge.
 	if c.HourlyRetentionDays < 1 {
 		l.errs = append(l.errs, errors.New("HOURLY_RETENTION_DAYS must be at least 1"))
+	}
+	// The daily cap is a safety valve for failures, so the schedule must never
+	// reach it on its own. Hourly checks already put 24 attempts in every
+	// 24-hour window; a cap of 24 skipped every 25th check and paused the page
+	// with nothing wrong.
+	if c.CredentialsPresent() && c.MaxLoginAttemptsPerDay > 0 {
+		shortest := min(c.MoodleSSOLoginInterval, c.CourseSelectionSSOLoginInterval)
+		if perDay := int(24 * time.Hour / shortest); c.MaxLoginAttemptsPerDay <= perDay {
+			l.errs = append(l.errs, fmt.Errorf(
+				"SSO_MAX_LOGIN_ATTEMPTS_PER_DAY is %d, but a %s login interval already makes %d attempts a day; set it above %d",
+				c.MaxLoginAttemptsPerDay, shortest, perDay, perDay))
+		}
 	}
 
 	// Every problem is reported at once. Fixing one variable per restart is a

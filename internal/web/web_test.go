@@ -523,6 +523,78 @@ func TestFooterLinksToTheRepository(t *testing.T) {
 	}
 }
 
+func TestEveryPageSaysItIsForReferenceOnly(t *testing.T) {
+	srv := newTestServer(t, fixtureReader(time.Now().In(taipei)))
+
+	for _, tc := range []struct{ accept, want string }{
+		{"zh-TW,zh;q=0.9", "本網站僅供參考"},
+		{"en-US,en;q=0.9", "This site is for reference only"},
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("Accept-Language", tc.accept)
+		rec := httptest.NewRecorder()
+		srv.ServeHTTP(rec, req)
+
+		body := rec.Body.String()
+		at := strings.Index(body, tc.want)
+		if at < 0 {
+			t.Errorf("%s page is missing %q", tc.accept, tc.want)
+			continue
+		}
+		// It belongs above everything else, not buried in the footer.
+		if masthead := strings.Index(body, `class="masthead"`); at > masthead {
+			t.Errorf("%s disclaimer comes after the masthead", tc.accept)
+		}
+	}
+}
+
+func TestAPauseAfterAFailedSignInKeepsTheServiceDegraded(t *testing.T) {
+	now := time.Now().In(taipei)
+	r := fixtureReader(now)
+	r.current["moodle.sso_login"] = store.Current{
+		CheckKey: "moodle.sso_login", State: probe.StateUnknown,
+		ReasonCode: probe.ReasonPausedAfterFailure,
+		Since:      now.Add(-time.Hour), LastCheckedAt: now,
+	}
+
+	// Pausing protects the account; it must not also make the outage vanish
+	// from the page for the length of the backoff.
+	if got := moodleState(t, newTestServer(t, r)); got != string(probe.StateDegraded) {
+		t.Fatalf("moodle state = %q, want degraded", got)
+	}
+}
+
+func TestANeutralPauseDoesNotInventAnOutage(t *testing.T) {
+	now := time.Now().In(taipei)
+	r := fixtureReader(now)
+	r.current["moodle.sso_login"] = store.Current{
+		CheckKey: "moodle.sso_login", State: probe.StateUnknown,
+		ReasonCode: probe.ReasonBreakerOpen,
+		Since:      now.Add(-time.Hour), LastCheckedAt: now,
+	}
+
+	if got := moodleState(t, newTestServer(t, r)); got != string(probe.StateUp) {
+		t.Fatalf("moodle state = %q, want up", got)
+	}
+}
+
+func moodleState(t *testing.T, srv *Server) string {
+	t.Helper()
+	rec := httptest.NewRecorder()
+	srv.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/v1/status", nil))
+	var payload apiStatus
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, s := range payload.Services {
+		if s.Key == "moodle" {
+			return s.State
+		}
+	}
+	t.Fatal("moodle missing from the payload")
+	return ""
+}
+
 func TestTigerDuckV2IsGone(t *testing.T) {
 	for _, svc := range config.Registry(config.RegistryOptions{IncludeMailSMTP: true}) {
 		if svc.Key == "tigerduck-v2" {

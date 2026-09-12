@@ -221,16 +221,19 @@ func (p *MoodleSSOLoginProbe) resolveToken(ctx context.Context, s *Session, page
 		}
 
 		if strings.Contains(page.URL.Host, p.Cfg.SSOHost) {
+			// Still on the IdP after submitting means it never handed us back
+			// to Moodle. NTUST re-renders the credential form both on a wrong
+			// password and when its own redirect fails, and the monitor's
+			// password does not change, so this is reported as the SSO
+			// failing. It stays terminal either way: a second submission is
+			// what walks the account toward a lockout.
+			if submitted {
+				r := down(latency, page.Status, ReasonSSORedirectFailed)
+				return "", &r
+			}
 			form, ok := FindLoginForm(ParseForms(page.Body))
 			if !ok || form.Get("__RequestVerificationToken") == "" {
 				r := down(latency, page.Status, ReasonSSOFormMissing)
-				return "", &r
-			}
-			// Landing back on the credential form after having submitted it
-			// means the credentials were rejected. Retrying is what triggers
-			// the lockout, so this is terminal.
-			if submitted {
-				r := down(latency, page.Status, ReasonSSOLoginRejected)
 				return "", &r
 			}
 			next, err := p.submitLogin(ctx, s, page, form)

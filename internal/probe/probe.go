@@ -45,6 +45,13 @@ const (
 	ReasonMXPartial        ReasonCode = "mx_partial"
 	ReasonGateClosed       ReasonCode = "gate_closed"
 	ReasonNotConfigured    ReasonCode = "not_configured"
+
+	// ReasonSSORedirectFailed means credentials were submitted but the IdP
+	// never handed the session back to the service.
+	ReasonSSORedirectFailed ReasonCode = "sso_redirect_failed"
+	// ReasonPausedAfterFailure means a credentialed check is suspended and its
+	// last real attempt failed.
+	ReasonPausedAfterFailure ReasonCode = "paused_after_failure"
 )
 
 // Result is one observation of one check.
@@ -124,6 +131,17 @@ func DeriveServiceState(states []State) State {
 	}
 }
 
+// RollupState is what a check contributes to its service's row. A sign-in
+// check suspended after a failure still counts as that failure: the pause
+// exists to protect the account, and must not also be how an outage drops off
+// the page.
+func RollupState(s State, r ReasonCode) State {
+	if s == StateUnknown && r == ReasonPausedAfterFailure {
+		return StateDown
+	}
+	return s
+}
+
 // knownReasons is the closed set that may be published. Anything else is a
 // programming error, and the API replaces it rather than passing it through:
 // the whole point of the coded vocabulary is that no upstream text can ever
@@ -135,6 +153,7 @@ var knownReasons = map[ReasonCode]bool{
 	ReasonTokenInvalid: true, ReasonUsernameMismatch: true, ReasonBreakerOpen: true,
 	ReasonGateClosed: true, ReasonNotConfigured: true, ReasonRetired: true,
 	ReasonLoginFormMissing: true, ReasonMXPartial: true,
+	ReasonSSORedirectFailed: true, ReasonPausedAfterFailure: true,
 }
 
 // IsKnownReason reports whether a reason code is safe to publish.

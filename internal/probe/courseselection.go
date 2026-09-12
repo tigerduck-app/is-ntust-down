@@ -2,6 +2,7 @@ package probe
 
 import (
 	"context"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -19,6 +20,14 @@ type CourseSelectionConfig struct {
 
 func (c CourseSelectionConfig) probeURL() string {
 	return strings.TrimRight(c.BaseURL, "/") + c.ProbePath
+}
+
+func (c CourseSelectionConfig) host() string {
+	u, err := url.Parse(c.BaseURL)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 // --- courseselection.site ---
@@ -138,11 +147,13 @@ func (p *CourseSelectionSSOLoginProbe) Run(ctx context.Context) Result {
 		return down(latency, page.Status, classifyTransport(err))
 	}
 
-	// Back at the credential form means the credentials were rejected. This
-	// is terminal by design: a retry cannot succeed, and retrying is what
-	// walks the account toward a lockout.
-	if IsSSOLoginPage(page.Body, page.URL, p.Cfg.SSOHost) {
-		return down(latency, page.Status, ReasonSSOLoginRejected)
+	// A login only succeeded if it ended on the course-selection site. The
+	// IdP answering 200 proves nothing: when NTUST's redirect breaks, students
+	// are left on an SSO page, sometimes the credential form again, while the
+	// site itself is fine to visit directly. Nothing is resubmitted here, so
+	// this stays a single attempt.
+	if !strings.EqualFold(page.URL.Host, p.Cfg.host()) {
+		return down(latency, page.Status, ReasonSSORedirectFailed)
 	}
 	if page.Status >= 400 {
 		return down(latency, page.Status, classifyStatus(page.Status))

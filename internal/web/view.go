@@ -145,7 +145,7 @@ func (b *Builder) Build(ctx context.Context, now time.Time, lang i18n.Lang) (*Pa
 			if cv.ReasonCode != probe.ReasonNone {
 				cv.Reason = cat.T("reason." + string(cv.ReasonCode))
 			}
-			checkStates = append(checkStates, cv.State)
+			checkStates = append(checkStates, probe.RollupState(cv.State, cv.ReasonCode))
 			sv.Checks = append(sv.Checks, cv)
 		}
 

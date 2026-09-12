@@ -21,10 +21,20 @@ func testCtx(t *testing.T) context.Context {
 // --- fake NTUST estate ---
 
 type fakeOpts struct {
-	rejectLogin bool
-	wstoken     string
-	username    string
+	// bounceToWall makes the IdP re-render the credential form after a POST.
+	// NTUST does that on a wrong password, and also when its own post-login
+	// redirect fails; from outside the two look identical.
+	bounceToWall bool
+	// postLoginPage, when set, replaces the bridge back to Moodle as the
+	// IdP's answer to a POST.
+	postLoginPage string
+	wstoken       string
+	username      string
 }
+
+// ssoDeadEndPage is an IdP page with nowhere to go: no bridge onward and no
+// credential form to retry.
+const ssoDeadEndPage = `<html><body><h1>系統忙碌中，請稍後再試</h1></body></html>`
 
 // fakeNTUST stands up two servers, because Moodle and the IdP live on
 // different hosts and the probes' host checks are load-bearing. Collapsing
@@ -34,6 +44,7 @@ type fakeNTUST struct {
 	sso    *httptest.Server
 
 	mu          sync.Mutex
+	posts       int
 	gotUsername string
 	gotPassword string
 	gotToken    string
@@ -67,17 +78,20 @@ func newFakeNTUST(t *testing.T, opts fakeOpts) *fakeNTUST {
 		}
 		_ = r.ParseForm()
 		f.mu.Lock()
+		f.posts++
 		f.gotUsername = r.PostForm.Get("Username")
 		f.gotPassword = r.PostForm.Get("Password")
 		f.gotToken = r.PostForm.Get("__RequestVerificationToken")
 		f.mu.Unlock()
 
-		if opts.rejectLogin {
-			// The IdP re-renders the wall on bad credentials.
+		switch {
+		case opts.bounceToWall:
 			_, _ = w.Write([]byte(ssoLoginPage))
-			return
+		case opts.postLoginPage != "":
+			_, _ = w.Write([]byte(opts.postLoginPage))
+		default:
+			_, _ = w.Write([]byte(oidcBridge(f.moodle.URL + "/auth/oidc/")))
 		}
-		_, _ = w.Write([]byte(oidcBridge(f.moodle.URL + "/auth/oidc/")))
 	})
 
 	moodleMux.HandleFunc("/auth/oidc/", func(w http.ResponseWriter, r *http.Request) {
@@ -209,12 +223,29 @@ func TestMoodleSSOLoginProbe(t *testing.T) {
 		}
 	})
 
-	t.Run("rejected credentials are terminal, not retried", func(t *testing.T) {
-		f := newFakeNTUST(t, fakeOpts{rejectLogin: true})
-		p := &MoodleSSOLoginProbe{Cfg: f.moodleCfg("B11234567", "wrong")}
+	t.Run("landing back on the login form is a failed redirect, not a wrong password", func(t *testing.T) {
+		f := newFakeNTUST(t, fakeOpts{bounceToWall: true})
+		p := &MoodleSSOLoginProbe{Cfg: f.moodleCfg("B11234567", "hunter2")}
 		got := p.Run(testCtx(t))
-		if got.ReasonCode != ReasonSSOLoginRejected {
-			t.Fatalf("reason = %q, want sso_login_rejected", got.ReasonCode)
+		// NTUST sends the browser back to this form when its own redirect
+		// fails, with a password that worked an hour earlier and works an hour
+		// later. Reporting that as a rejected password blames the account for
+		// an SSO outage.
+		if got.State != StateDown || got.ReasonCode != ReasonSSORedirectFailed {
+			t.Fatalf("got %q/%q, want down/sso_redirect_failed", got.State, got.ReasonCode)
+		}
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		if f.posts != 1 {
+			t.Fatalf("credentials posted %d times; a second post risks the lockout", f.posts)
+		}
+	})
+
+	t.Run("an SSO page that goes nowhere after sign-in is a failed redirect", func(t *testing.T) {
+		f := newFakeNTUST(t, fakeOpts{postLoginPage: ssoDeadEndPage})
+		p := &MoodleSSOLoginProbe{Cfg: f.moodleCfg("B11234567", "hunter2")}
+		if got := p.Run(testCtx(t)); got.ReasonCode != ReasonSSORedirectFailed {
+			t.Fatalf("reason = %q, want sso_redirect_failed", got.ReasonCode)
 		}
 	})
 
@@ -326,15 +357,29 @@ func TestTigerDuckV3Probe(t *testing.T) {
 
 // --- courseselection ---
 
+// csOutcome is what the IdP does once credentials are posted.
+type csOutcome int
+
+const (
+	csRedirects      csOutcome = iota // bridges back to the course-selection site
+	csBouncesToWall                   // re-renders the credential form
+	csStuckOnSSO                      // serves an SSO page that leads nowhere
+	csLandsElsewhere                  // bridges to a host that is not the service
+)
+
 func TestCourseSelectionSSOLoginProbe(t *testing.T) {
-	newEstate := func(t *testing.T, reject bool) CourseSelectionConfig {
+	newEstate := func(t *testing.T, outcome csOutcome) CourseSelectionConfig {
 		t.Helper()
 		csMux := http.NewServeMux()
 		ssoMux := http.NewServeMux()
 		cs := httptest.NewServer(csMux)
 		sso := httptest.NewServer(ssoMux)
+		elsewhere := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`<html><body>NTUST</body></html>`))
+		}))
 		t.Cleanup(cs.Close)
 		t.Cleanup(sso.Close)
+		t.Cleanup(elsewhere.Close)
 
 		csMux.HandleFunc("/ChooseList/D01/D01", func(w http.ResponseWriter, r *http.Request) {
 			if _, err := r.Cookie("authed"); err == nil {
@@ -348,11 +393,20 @@ func TestCourseSelectionSSOLoginProbe(t *testing.T) {
 			http.Redirect(w, r, "/ChooseList/D01/D01", http.StatusFound)
 		})
 		ssoMux.HandleFunc("/account/login", func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == http.MethodPost && !reject {
-				_, _ = w.Write([]byte(oidcBridge(cs.URL + "/signin-oidc")))
+			if r.Method != http.MethodPost {
+				_, _ = w.Write([]byte(ssoLoginPage))
 				return
 			}
-			_, _ = w.Write([]byte(ssoLoginPage))
+			switch outcome {
+			case csRedirects:
+				_, _ = w.Write([]byte(oidcBridge(cs.URL + "/signin-oidc")))
+			case csBouncesToWall:
+				_, _ = w.Write([]byte(ssoLoginPage))
+			case csStuckOnSSO:
+				_, _ = w.Write([]byte(ssoDeadEndPage))
+			case csLandsElsewhere:
+				_, _ = w.Write([]byte(oidcBridge(elsewhere.URL + "/")))
+			}
 		})
 
 		return CourseSelectionConfig{
@@ -367,16 +421,34 @@ func TestCourseSelectionSSOLoginProbe(t *testing.T) {
 	}
 
 	t.Run("login lands past the wall on the service", func(t *testing.T) {
-		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, false)}
+		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, csRedirects)}
 		if got := p.Run(testCtx(t)); got.State != StateUp {
 			t.Fatalf("state = %q (%s), want up", got.State, got.ReasonCode)
 		}
 	})
 
-	t.Run("still at the wall after posting means rejection", func(t *testing.T) {
-		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, true)}
-		if got := p.Run(testCtx(t)); got.ReasonCode != ReasonSSOLoginRejected {
-			t.Fatalf("reason = %q, want sso_login_rejected", got.ReasonCode)
+	t.Run("landing back on the login form is a failed redirect", func(t *testing.T) {
+		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, csBouncesToWall)}
+		if got := p.Run(testCtx(t)); got.ReasonCode != ReasonSSORedirectFailed {
+			t.Fatalf("reason = %q, want sso_redirect_failed", got.ReasonCode)
+		}
+	})
+
+	// Students see exactly this: the SSO page accepts the password and then
+	// never hands them back to the site. A 200 from the IdP is not a login.
+	t.Run("an SSO page that goes nowhere is not a successful login", func(t *testing.T) {
+		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, csStuckOnSSO)}
+		got := p.Run(testCtx(t))
+		if got.State != StateDown || got.ReasonCode != ReasonSSORedirectFailed {
+			t.Fatalf("got %q/%q, want down/sso_redirect_failed", got.State, got.ReasonCode)
+		}
+	})
+
+	t.Run("ending up on some other site is not a successful login", func(t *testing.T) {
+		p := &CourseSelectionSSOLoginProbe{Cfg: newEstate(t, csLandsElsewhere)}
+		got := p.Run(testCtx(t))
+		if got.State != StateDown || got.ReasonCode != ReasonSSORedirectFailed {
+			t.Fatalf("got %q/%q, want down/sso_redirect_failed", got.State, got.ReasonCode)
 		}
 	})
 }
