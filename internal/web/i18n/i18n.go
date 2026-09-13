@@ -25,13 +25,13 @@ var ZhTW = Catalog{
 	"site.disclaimer": "本網站僅供參考",
 
 	"state.up":       "正常",
-	"state.degraded": "部分異常",
+	"state.degraded": "可能部分異常",
 	"state.down":     "異常",
 	"state.unknown":  "檢查暫停",
 	"state.retired":  "已退役",
 
 	"banner.ok":       "所有服務運作正常",
-	"banner.degraded": "部分服務異常",
+	"banner.degraded": "可能部分服務異常",
 	"banner.down":     "服務中斷",
 	"banner.unknown":  "尚未取得檢查結果",
 

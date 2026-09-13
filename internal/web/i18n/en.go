@@ -8,14 +8,14 @@ var EnUS = Catalog{
 	"site.disclaimer": "This site is for reference only.",
 
 	"state.up":       "Operational",
-	"state.degraded": "Partial outage",
+	"state.degraded": "Possible service outage",
 	"state.down":     "Outage",
 	"state.unknown":  "Checks paused",
 	"state.retired":  "Retired",
 
 	"banner.ok":       "All services operational",
 	"banner.degraded": "Some services degraded",
-	"banner.down":     "Service outage",
+	"banner.down":     "Possible service outage",
 	"banner.unknown":  "No results yet",
 
 	"service.moodle.name":          "Moodle",
